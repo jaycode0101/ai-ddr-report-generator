@@ -27,9 +27,9 @@ if not GEMINI_API_KEY:
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Constants
-MAX_IMAGES = 120         # Cap extracted images to avoid massive prompts
-MIN_IMAGE_SIZE = 200     # Minimum width/height in pixels
-MAX_TEXT_CHARS = 6000     # Max chars per document to send to AI
+MAX_IMAGES = 20          # keep small to save API tokens
+MIN_IMAGE_SIZE = 200     # minimum width/height in pixels
+MAX_TEXT_CHARS = 4000    # max chars per document to send to AI
 MAX_RETRIES = 3
 RETRY_DELAY = 30         # seconds
 
@@ -163,15 +163,10 @@ class DDRGenerator:
         print(f"\n  Total images extracted: {len(self.all_images)}")
 
     def _build_image_catalog(self):
-        # build a text list of images so the LLM knows what's available
-        catalog = "## Extracted Images Catalog\n\n"
+        # build a compact list of images for the LLM
+        catalog = "Available Images:\n"
         for i, img in enumerate(self.all_images):
-            catalog += f"Image #{i+1}:\n"
-            catalog += f"  - Filename: {img['filename']}\n"
-            catalog += f"  - Source: {img['source']}\n"
-            catalog += f"  - Page: {img['page']}\n"
-            catalog += f"  - Dimensions: {img['dimensions']}\n"
-            catalog += f"  - Page Context: {img['page_context'][:150]}\n\n"
+            catalog += f"#{i+1}: {img['source']} p{img['page']}\n"
         return catalog
 
     def generate_ddr_content(self):
@@ -215,7 +210,17 @@ IMAGE CATALOG:
 
 Generate the complete DDR now in markdown format."""
 
-        print(f"  -> Prompt size: {len(prompt)} chars")
+        prompt_path = os.path.join(self.output_dir, "PROMPT.txt")
+        with open(prompt_path, "w", encoding="utf-8") as f:
+            f.write(prompt)
+        print(f"  -> Prompt size: {len(prompt)} chars (Saved to {prompt_path})")
+
+        manual_response_path = os.path.join(self.output_dir, "AI_RESPONSE.md")
+        if os.path.exists(manual_response_path):
+            print(f"  -> Found manual response at {manual_response_path}. Using it instead of API.")
+            with open(manual_response_path, "r", encoding="utf-8") as f:
+                self.ddr_content = f.read()
+            return self.ddr_content
 
         # Retry logic for quota limits
         for attempt in range(MAX_RETRIES):
@@ -233,8 +238,14 @@ Generate the complete DDR now in markdown format."""
                 else:
                     raise e
 
-        print("[ERROR] Failed after all retries. Quota may be fully exhausted.")
-        print("  -> Try again in a few minutes or add billing to your Google AI project.")
+        print("\n[ERROR] API Quota exhausted.")
+        print(f"  [MANUAL WORKAROUND]:")
+        print(f"  1. Open the file {prompt_path}")
+        print(f"  2. Copy the entire contents")
+        print(f"  3. Go to https://aistudio.google.com/ and paste it into a new Free Tier prompt")
+        print(f"  4. Copy the AI's response")
+        print(f"  5. Save the response inside {manual_response_path}")
+        print(f"  6. Run this script again. It will skip the API and build the HTML report automatically.")
         sys.exit(1)
 
     def build_html_report(self):
