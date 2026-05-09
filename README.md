@@ -3,7 +3,7 @@
 A Python-based system that automatically generates **Detailed Diagnostic Reports (DDR)** from building inspection and thermal imaging data.
 
 ## What it does
-
+12
 Takes two input documents:
 - **Inspection Report** (PDF) — visual site observations, area-wise issue descriptions
 - **Thermal Report** (PDF) — thermal imaging data with temperature readings
